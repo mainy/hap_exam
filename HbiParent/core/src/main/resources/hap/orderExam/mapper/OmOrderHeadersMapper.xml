@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="hap.orderExam.mapper.OmOrderHeadersMapper">
+    <resultMap id="BaseResultMap" type="hap.orderExam.dto.OmOrderHeaders">
+        <result column="HEADER_ID" property="headerId" jdbcType="DECIMAL" />
+        <result column="ORDER_NUMBER" property="orderNumber" jdbcType="VARCHAR" />
+        <result column="COMPANY_ID" property="companyId" jdbcType="DECIMAL" />
+        <result column="ORDER_DATE" property="orderDate" jdbcType="DATE" />
+        <result column="ORDER_STATUS" property="orderStatus" jdbcType="VARCHAR" />
+        <result column="CUSTOMER_ID" property="customerId" jdbcType="DECIMAL" />
+    </resultMap>
+
+    <!--订单汇总：首页查询所有的汇总信息-->
+    <select id="selectAll1" resultType="hap.orderExam.dto.OmOrderHeaders">
+
+        select
+        head.HEADER_ID headerId,
+        head.ORDER_NUMBER orderNumber,
+        head.COMPANY_ID companyId,
+        head.CUSTOMER_ID customerId,
+        c1.COMPANY_NAME companyName,
+        c2.CUSTOMER_NAME customerName,
+        DATE_FORMAT(head.ORDER_DATE,'%Y-%m-%d') orderDate,
+        head.ORDER_STATUS orderStatus,
+        FORMAT(sum(line.UNIT_SELLING_PRICE*line.ORDERD_QUANTITY),2) orderAccount
+        from hap_om_order_headers head
+        join hap_org_companys c1
+        on head.COMPANY_ID = c1.COMPANY_ID
+        JOIN hap_ar_customers c2
+        on head.CUSTOMER_ID=c2.CUSTOMER_ID
+        join hap_om_order_lines line
+        on line.HEADER_ID = head.HEADER_ID
+        join hap_inv_inventory_items items
+        on items.INVENTORY_ITEM_ID = line.INVENTORY_ITEM_ID
+        <where>
+            <if test="companyId!=null">
+                and c1.COMPANY_ID=#{companyId}
+            </if>
+            <if test="customerId!=null">
+                and c2.CUSTOMER_ID=#{customerId}
+            </if>
+            <if test="orderNumber!=null">
+                and head.ORDER_NUMBER=#{orderNumber}
+            </if>
+            <if test="orderStatus !=null ">
+                and head.ORDER_STATUS=#{orderStatus}
+            </if>
+            <if test="itemDescription != null">
+                and items.ITEM_DESCRIPTION=#{itemDescription}
+            </if>
+            <if test="headerId != null">
+                and head.HEADER_ID=#{headerId}
+            </if>
+        </where>
+        GROUP BY
+        head.HEADER_ID,
+        head.ORDER_NUMBER,
+        head.COMPANY_ID,
+        head.CUSTOMER_ID,
+        c1.COMPANY_NAME,
+        c2.CUSTOMER_NAME,
+        head.ORDER_DATE,
+        head.ORDER_STATUS
+        UNION
+        SELECT
+        h.header_id headerId,
+        h.order_number orderNumber,
+        co.company_id companyId,
+        cu.customer_id customerId,
+        co.company_name companyName,
+        cu.customer_name customerName,
+        h.order_date orderDate,
+        h.order_status orderStatus,
+        0 orderAccount
+        FROM
+        hap_ar_customers cu,
+        hap_org_companys co,
+        hap_om_order_headers h
+        WHERE
+        h.company_id = co.company_id
+        AND h.customer_id = cu.customer_id
+        AND h.header_id NOT IN (
+        SELECT
+        header_id
+        FROM
+        hap_om_order_lines l
+        )
+        <if test="companyId != null ">
+            and h.company_id=#{companyId}
+        </if>
+        <if test="customerId != null ">
+            and h.customer_id=#{customerId}
+        </if>
+        <if test="orderNumber != null ">
+            and h.order_number=#{orderNumber}
+        </if>
+        <if test="orderStatus != null ">
+            and h.order_status=#{orderStatus}
+        </if>
+    </select>
+
+    <!--整单删除：删除头记录和对应的行记录-->
+    <delete id="deleteAll" parameterType="long">
+        DELETE t1,t2
+        FROM
+        hap_om_order_headers t1
+        LEFT JOIN hap_om_order_lines t2 ON t1.HEADER_ID = t2.HEADER_ID
+        WHERE
+        t1.HEADER_ID = #{headerId}
+    </delete>
+
+    <!--根据订单编号查询头记录信息-->
+    <select id="selectByOrderNumber" parameterType="String" resultType="int">
+        select count(*) from hap_om_order_headers where order_number = #{ordernumber}
+    </select>
+
+    <!--更新订单头信息-->
+    <update id="updateHeader" parameterType="hap.orderExam.dto.OmOrderHeaders">
+        UPDATE hap_om_order_headers
+        SET ORDER_NUMBER=#{orderNumber},
+        COMPANY_ID=#{companyId},
+        CUSTOMER_ID=#{customerId},
+        ORDER_DATE=#{orderDate},
+        ORDER_STATUS=#{orderStatus}
+        WHERE
+        HEADER_ID=#{headerId}
+    </update>
+
+
+
+
+
+</mapper>

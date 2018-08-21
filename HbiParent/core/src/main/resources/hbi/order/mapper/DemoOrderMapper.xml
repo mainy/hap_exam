@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="hbi.order.mapper.DemoOrderMapper">
+    <resultMap id="BaseResultMap" type="hbi.order.dto.DemoOrder">
+        <result column="ORDER_ID" property="orderId" jdbcType="DECIMAL" />
+        <result column="ORDER_CODE" property="orderCode" jdbcType="VARCHAR" />
+        <result column="ORDER_NAME" property="orderName" jdbcType="VARCHAR" />
+        <result column="ORDER_DATE" property="orderDate" jdbcType="DATE" />
+        <result column="ORDER_COMPANY" property="orderCompany" jdbcType="VARCHAR" />
+    </resultMap>
+
+
+</mapper>

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>HbiParent</artifactId>
+        <groupId>hbi</groupId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>core-db</artifactId>
+    <packaging>jar</packaging>
+
+    <name>core-db</name>
+    <url>http://maven.apache.org</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- hap全模块 db依赖 -->
+        <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>
+
+        <!-- core db依赖 -->
+      <!--  <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-core-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 服务注册 db依赖 -->
+       <!-- <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-gateway-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- oauth2 db依赖 -->
+       <!-- <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-oauth2-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 接口管理 db依赖 -->
+      <!--  <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-interface-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 计划任务 db依赖 -->
+       <!-- <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-job-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 邮件 db依赖 -->
+       <!-- <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-mail-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 并行任务 db依赖 -->
+      <!--  <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-task-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 工作流 db依赖 -->
+        <!--<dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-workflow-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+        <!-- 报表 db依赖 -->
+       <!-- <dependency>
+            <groupId>com.hand</groupId>
+            <artifactId>hap-report-db</artifactId>
+            <version>${hap.version}</version>
+        </dependency>-->
+
+    </dependencies>
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/java/</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>**/*.groovy</include>
+                    <include>**/*.xml</include>
+                    <include>**/*.sql</include>
+                    <include>**/*.xlsx</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>addSources</goal>
+                            <goal>addTestSources</goal>
+                            <goal>generateStubs</goal>
+                            <goal>compile</goal>
+                            <goal>testGenerateStubs</goal>
+                            <goal>testCompile</goal>
+                            <goal>removeStubs</goal>
+                            <goal>removeTestStubs</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <!-- if including source jars, use the no-fork goals
+                     otherwise both the Groovy sources and Java stub sources
+                     will get included in your jar -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <!-- source plugin \> = 2.1 is required to use the no-fork goals -->
+                <version>2.4</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                            <goal>test-jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>2.6</version>
+                <configuration>
+                    <nonFilteredFileExtensions>
+                        <nonFilteredFileExtension>pdf</nonFilteredFileExtension>
+                        <nonFilteredFileExtension>xlsx</nonFilteredFileExtension>
+                    </nonFilteredFileExtensions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

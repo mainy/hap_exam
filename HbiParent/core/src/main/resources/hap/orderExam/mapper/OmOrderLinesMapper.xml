@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="hap.orderExam.mapper.OmOrderLinesMapper">
+    <resultMap id="BaseResultMap" type="hap.orderExam.dto.OmOrderLines">
+        <result column="LINE_ID" property="lineId" jdbcType="DECIMAL" />
+        <result column="HEADER_ID" property="headerId" jdbcType="DECIMAL" />
+        <result column="LINE_NUMBER" property="lineNumber" jdbcType="DECIMAL" />
+        <result column="INVENTORY_ITEM_ID" property="inventoryItemId" jdbcType="DECIMAL" />
+        <result column="ORDERD_QUANTITY" property="orderdQuantity" jdbcType="DECIMAL" />
+        <result column="ORDER_QUANTITY_UOM" property="orderQuantityUom" jdbcType="VARCHAR" />
+        <result column="UNIT_SELLING_PRICE" property="unitSellingPrice" jdbcType="DECIMAL" />
+        <result column="DESCRIPTION" property="description" jdbcType="VARCHAR" />
+        <result column="COMPANY_ID" property="companyId" jdbcType="DECIMAL" />
+        <result column="ADDITION1" property="addition1" jdbcType="VARCHAR" />
+        <result column="ADDITION2" property="addition2" jdbcType="VARCHAR" />
+        <result column="ADDITION3" property="addition3" jdbcType="VARCHAR" />
+        <result column="ADDITION4" property="addition4" jdbcType="VARCHAR" />
+        <result column="ADDITION5" property="addition5" jdbcType="VARCHAR" />
+    </resultMap>
+
+    <!--查询所有的行记录信息，如果订单hearderId不为空则关联查询该订单的行记录-->
+    <select id="selectAllLines" resultType="hap.orderExam.dto.OmOrderLines">
+        SELECT
+        line.INVENTORY_ITEM_ID inventoryItemId,
+        line.LINE_NUMBER lineNumber,
+        line.LINE_ID lineId,
+        item.ITEM_CODE itemCode,
+        item.ITEM_DESCRIPTION itemDescription,
+        item.ITEM_UOM itemUom,
+        line.ORDERD_QUANTITY orderdQuantity,
+        line.UNIT_SELLING_PRICE unitSellingPrice,
+        line.ADDITION1 addition1,
+        line.ADDITION2 addition2,
+        line.ADDITION3 addition3,
+        line.ADDITION4 addition4,
+        line.ADDITION5 addition5,
+        sum(line.ORDERD_QUANTITY * line.UNIT_SELLING_PRICE) account,
+        line.DESCRIPTION
+        FROM
+        hap_om_order_lines line
+        JOIN hap_inv_inventory_items item ON line.INVENTORY_ITEM_ID = item.INVENTORY_ITEM_ID
+        JOIN hap_om_order_headers head ON head.HEADER_ID = line.HEADER_ID
+        <where>
+            <if test="headerId!=null">
+                and head.HEADER_ID=#{headerId}
+            </if>
+        </where>
+        GROUP BY
+        line.INVENTORY_ITEM_ID,
+        line.LINE_ID,
+        item.ITEM_CODE,
+        item.ITEM_DESCRIPTION,
+        item.ITEM_UOM,
+        line.ORDERD_QUANTITY,
+        line.UNIT_SELLING_PRICE,
+        line.DESCRIPTION,
+        line.LINE_NUMBER,
+        line.ADDITION1,
+        line.ADDITION2,
+        line.ADDITION3,
+        line.ADDITION4,
+        line.ADDITION5
+    </select>
+
+    <!--根据headerId查找对应的行记录的行号最大值+1-->
+    <select id="findMaxSeqNum" resultType="java.lang.Long" parameterType="java.lang.Long">
+        SELECT
+        MAX(line.LINE_NUMBER) + 1
+        FROM
+        hap_om_order_lines line
+        WHERE
+        line.HEADER_ID = #{headerId};
+    </select>
+</mapper>

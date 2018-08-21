@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="hbi.demo.mapper.DemoBankMapper">
+    <resultMap id="BaseResultMap" type="hbi.demo.dto.DemoBank">
+        <result column="BANK_ID" property="bankId" jdbcType="DECIMAL" />
+        <result column="BANK_CODE" property="bankCode" jdbcType="VARCHAR" />
+        <result column="BANK_NAME" property="bankName" jdbcType="VARCHAR" />
+        <result column="BANK_TYPE" property="bankType" jdbcType="VARCHAR" />
+        <result column="DESCRIPTION" property="description" jdbcType="VARCHAR" />
+        <result column="EXPIRATION_DATE" property="expirationDate" jdbcType="DATE" />
+        <result column="COMMENTS" property="comments" jdbcType="VARCHAR" />
+    </resultMap>
+
+
+</mapper>

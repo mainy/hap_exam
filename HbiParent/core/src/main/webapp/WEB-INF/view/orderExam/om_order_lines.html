@@ -1,0 +1,776 @@
+<#include "../include/header.html">
+    <!-- 引入字体，否则PDF打印中文乱码-->
+    <style>
+        @font-face{
+            font-family: "DejaVu Sans";
+            src: url("${base.contextPath}/lib/font/DejaVuSans.ttf");
+        }
+    </style>
+<script type="text/javascript">
+    //初始化页面状态
+    var headerId = '${RequestParameters.headerId!0}';
+    //是否为新建，默认为新建
+    var isNew = 1
+    if(headerId!=0)
+    {
+        //如果订单headerId不等于0，则为编辑或者查看
+        isNew =0;
+    }
+    //0为查看，1为编辑
+    var queryFlag = '${RequestParameters.queryFlag!0}';
+    //1为更新，2为新增
+    var isUpdate = 0;
+    //保存当前订单订单状态
+    var myOrderStatus;
+    //保存当前订单公司的ID
+    var mycompanyId;
+    //保存当前订单客户的ID
+    var mycustomerId;
+
+
+    //初始化viewModel
+    var viewModel = Hap.createGridViewModel("#grid",{
+        //默认订单为新建
+        model:{
+            orderStatus:"NEW"
+        },
+        /*保存头表数据*/
+        saveOrderHeadFunction:function (e){
+            e.preventDefault();
+            var validator = $("#myform").kendoValidator().data("kendoValidator");
+            if (validator.validate()) {
+                //表单验证通过
+                //新增操作
+                if(!isUpdate){
+                    var dataItem = viewModel.model.toJSON();
+                    var data = kendo.stringify(dataItem);
+                    $.ajax({
+                        type: 'POST',
+                        url: '/hap/om/order/headers/add',
+                        async:false,
+                        dataType: "json",
+                        contentType: "application/json",
+                        data: kendo.stringify(dataItem),
+                        success: function (data) {
+                            if (data.success == false) {
+                                kendo.ui.showErrorDialog({
+                                    message: data.message
+                                });
+                            }
+                            else {
+                                headerId = data.rows[0].headerId;
+                                mycompanyId = data.rows[0].companyId;
+                                kendo.ui.showInfoDialog({
+                                    message: data.message
+                                });
+                                //提交按钮可用
+                                $("#submitButton").removeAttr("disabled").css("background", "#FFF");
+                            }
+                        }
+                    });
+                    //将状态修改为更新,新增的执行有且仅有一次
+                    isUpdate = 1;
+                    return 0;
+                }
+                //更新操作
+                if(isUpdate){
+
+                    //将headerId加入viewmodel
+                    viewModel.model.set("headerId",headerId);
+                    var dataItem = viewModel.model.toJSON();
+                    console.log(data);
+                    $.ajax({
+                        type: 'POST',
+                        url: '/hap/om/order/headers/update',
+                        async:false,
+                        dataType: "json",
+                        contentType: "application/json",
+                        data: kendo.stringify(dataItem),
+                        success: function (data) {
+                            if (data.success == false) {
+                                kendo.ui.showErrorDialog({
+                                    message: data.message
+                                });
+                            }
+                            else {
+                                headerId = data.rows[0];
+                                mycompanyId = data.rows[1];
+                                kendo.ui.showInfoDialog({
+                                    message: data.message
+                                });
+                            }
+                        }
+                    });
+                }
+            } else {
+                //表单验证未通过
+                kendo.ui.showErrorDialog({
+                    message: '你还有关键字段没有填写哦'
+                });
+            }
+        },
+
+        /*提交*/
+        submitFunction:function(){
+           var OrderStatus = "SUBMITED"
+            updateOrderStatus(OrderStatus);
+        },
+
+        /*审批*/
+        approvdeFunction:function(){
+            var OrderStatus = "APPROVED"
+            updateOrderStatus(OrderStatus);
+        },
+
+        /*拒绝*/
+        rejectFunction:function(e){
+            e.preventDefault();
+            var OrderStatus = "REJECTED"
+            updateOrderStatus(OrderStatus);
+        },
+        /*返回到订单汇总查询界面*/
+        gobackFunction:function () {
+            parent.location.reload();
+        },
+        /*整单删除*/
+        deleteAllFunction:function () {
+        var dataItem = viewModel.model.toJSON();
+        $.ajax({
+            type: 'POST',
+            url: '/hap/om/order/headers/delete',
+            dataType: "json",
+            contentType: "application/json",
+            data: kendo.stringify(dataItem),
+            success: function (data) {
+                if (data.success == false) {
+                    kendo.ui.showErrorDialog({
+                        message: data.message
+                    });
+                }
+                else {
+                    kendo.ui.showInfoDialog({
+                        message: data.message
+                    }).done(function () {
+                        parent.location.reload();
+                    });
+                }
+            }
+        })
+    }
+
+    });
+
+
+
+
+    if (isNew==1) {
+        //新增订单头操作
+        //控制按钮
+        $(document).ready(function () {
+            $("#submitButton").attr("disabled", true).css("background", "#DDD");
+            $("#approvalButton").attr("disabled", true).css("background", "#DDD");
+            $("#rejectButton").attr("disabled", true).css("background", "#DDD");
+            $("#deleteAllButton").attr("disabled", true).css("background", "#DDD");
+            $("#printButton").attr("disabled", true).css("background", "#DDD");
+        });
+        //初始化时间
+        var orderDate = new Date();
+        viewModel.model.set('orderDate', orderDate);
+    }else {
+
+        //编辑状态
+        isUpdate = 1;
+        console.log(headerId);
+        //初始化订单头
+        $.ajax({
+            type : "POST",
+            url: "${base.contextPath}/hap/om/order/headers/query",
+            data: { headerId : headerId },
+            success: function(json) {
+                var row = json.rows[0] || {};
+                for (var k in row) {
+                    console.log(k);
+                    console.log(row[k]);
+                    viewModel.model.set(k, row[k]);
+                }
+                mycompanyId = row.companyId;
+                mycustomerId = row.customerId;
+               // 获取订单状态
+                myOrderStatus = row.orderStatus;
+                //根据此时的订单的状态去初始化页面元素属性
+                initPage(myOrderStatus);
+            }
+//            success: function (data) {
+//                mycompanyId = data.rows[0].companyId;
+//                mycustomerId = data.rows[0].customerId;
+//                var item = data.rows[0] || {};
+//                for (var k in item) {
+//                    viewModel.model.set(k, item[k]);
+//                }
+                //获取订单状态
+                //myOrderStatus = data.rows[0].orderStatus;
+                //根据此时的订单的状态去初始化页面元素属性
+               // initPage(myOrderStatus);
+           // }
+        });
+
+
+    }
+    //根据订单状态初始化页面
+    function initPage(orderStatus)
+    {
+        switch (orderStatus)
+        {
+
+            case "NEW"://状态为新建
+                $(document).ready(function () {
+                //禁用头中按钮组
+                $("#approvalButton").attr("disabled", true).css("background", "#DDD");
+                $("#rejectButton").attr("disabled", true).css("background", "#DDD");
+                });
+                break;
+            case "SUBMITED"://已提交
+                //禁用头中按钮组
+
+                $(document).ready(function () {
+                    //禁用头按钮
+                    $("#submitButton").attr("disabled", true).css("background", "#DDD");
+                    $("#deleteAllButton").attr("disabled", true).css("background", "#DDD");
+                    $("#saveButton").attr("disabled", true).css("background", "#DDD");
+                    //禁用头input控件
+                    $("#orderNumber").attr("disabled", true);
+                    $("#companyName").data("kendoLov").enable(false);
+                    $("#customerName").data("kendoLov").enable(false);
+                    $("#orderDate").data("kendoDatePicker").enable(false);
+                    $("#orderAccount").attr("disabled", true);
+                    $("#orderStatus").attr("disabled", true);
+                    //禁用行中按钮组
+                    $("#createLine").attr("disabled", true).css("background", "#DDD");
+                    $("#saveLine").attr("disabled", true).css("background", "#DDD");
+                    $("#deleteLine").attr("disabled", true).css("background", "#DDD");
+                });
+                break;
+            case "APPROVED"://已审批
+
+                $(document).ready(function () {
+                    //禁用头按钮
+                    $("#submitButton").attr("disabled", true).css("background", "#DDD");
+                    $("#deleteAllButton").attr("disabled", true).css("background", "#DDD");
+                    $("#saveButton").attr("disabled", true).css("background", "#DDD");
+                    $("#approvalButton").attr("disabled", true).css("background", "#DDD");
+                    $("#rejectButton").attr("disabled", true).css("background", "#DDD");
+                    //禁用头input控件
+                    $("#orderNumber").attr("disabled", true);
+                    $("#companyName").data("kendoLov").enable(false);
+                    $("#customerName").data("kendoLov").enable(false);
+                    $("#orderDate").data("kendoDatePicker").enable(false);
+                    $("#orderAccount").attr("disabled", true);
+                    $("#orderStatus").attr("disabled", true);
+                    //禁用行中按钮组
+                    $("#createLine").attr("disabled", true).css("background", "#DDD");
+                    $("#saveLine").attr("disabled", true).css("background", "#DDD");
+                    $("#deleteLine").attr("disabled", true).css("background", "#DDD");
+                });
+                break;
+            case "REJECTED"://已拒绝
+                            //禁用按钮组
+                $(document).ready(function () {
+                $("#approvalButton").attr("disabled", true).css("background", "#DDD");
+                $("#rejectButton").attr("disabled", true).css("background", "#DDD");
+                });
+                break;
+        }
+    }
+
+
+    // 初始化头行
+    /*
+    if(headerId){
+        //如果存在headerId赋默认值
+
+        viewModel.model.set("headerId",headerId);
+        //获取头数据
+        $.ajax({
+            type : "POST",
+            url: "${base.contextPath}/hap/om/order/headers/query",
+            data: { headerId : headerId },
+            success: function(json) {
+                var row = json.rows[0] || {};
+                for (var k in row) {
+                    console.log(row[k]);
+                    viewModel.model.set(k, row[k]);
+                }
+            }
+        });
+    }
+*/
+</script>
+<style>
+    /*表格标题居中显示*/
+    .k-grid th{
+        text-align: center!important;
+    }
+    /*表格列居中*/
+    .k-grid tr{
+        text-align: center!important;
+    }
+</style>
+<body>
+<script src="${base.contextPath}/common/code?orderStatusData=HAP_OM_ORDER_STATUS"
+        type="text/javascript">
+</script>
+<div id="page-content">
+
+    <div class="panel" id="query-form" style="padding-bottom:10px;">
+        <form class="form-horizontal" id="myform">
+            <div class="panel-body">
+                <div class="row">
+                    <!--第一行-->
+                    <!--销售订单号-->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "销售订单号"/></label>
+                            <div class="col-xs-8">
+                                <input id="orderNumber" required validationMessage="必输" type="text" data-role="maskedtextbox"
+                                       style="float:left;width:150px;margin-right:5px;" data-bind="value:model.orderNumber" >
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!--公司名称-->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "公司名称"/></label>
+                            <div class="col-xs-8">
+                                <input id="companyName" required validationMessage="必输" type="text"  style="width:150px;margin-right:5px;" data-bind="value:model.companyId,text:model.companyName" >
+                                <!--<input id="companyId" type="text" style="width:200px;margin-right:5px;" data-bind="value:model.companyId,text:model.companyName" required data-required-msg="公司名称为必填项">-->
+
+                                <script>
+                                    $("#companyName").kendoLov($.extend(${lovProvider.getLov(base.contextPath,base.locale,"HAPEXAM_COMPANY")},{}))
+//                                   $("#companyName").kendoLov({
+//                                       code: "HAPEXAM_COMPANY",
+//                                       contextPath: '${base.contextPath}',
+//                                       locale: '${base.locale}'
+//                                   });
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <!--客户名称-->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "客户名称"/></label>
+                            <div class="col-xs-8">
+                                <input id="customerName" required validationMessage="必输" type="text"  style="width:150px;margin-right:5px;" data-bind="value:model.customerId,text:model.customerName" >
+                                <script>
+                                    $("#customerName").kendoLov($.extend(${lovProvider.getLov(base.contextPath,base.locale,"HAPEXAM_CUSTOMER")},{}))
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <!--第二行-->
+                <div class="row">
+                    <!--订单日期 -->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "订单日期"/></label>
+                            <div class="col-xs-8">
+                                <input id="orderDate" required validationMessage="必输" style="width:150px;margin-right:5px;" data-bind="value:model.orderDate">
+                            </div>
+                            <script>
+                                $("#orderDate").kendoDatePicker({
+                                    format: "{0:yyyy-MM-dd}"
+                                }).data("kendoDatePicker");
+                            </script>
+                        </div>
+                    </div>
+
+                    <!--订单总金额 -->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "订单金额"/></label>
+                            <div class="col-xs-8">
+                                <input id="orderAccount" type="text" data-role="maskedtextbox" style="width:150px;margin-right:5px;" data-bind="value:model.orderAccount" >
+                            </div>
+                        </div>
+                    </div>
+                    <!--订单状态-->
+                    <div class="col-xs-4">
+                        <div class="form-group">
+                            <label class="col-md-4 control-label"><@spring.message
+                                "订单状态"/></label>
+                            <div class="col-xs-8">
+                                <input id="orderStatus" type="text" style="width:150px;margin-right:5px;" data-bind="value:model.orderStatus">
+                            </div>
+                            <script>
+                                $("#orderStatus").kendoComboBox({
+                                    dataSource: orderStatusData,
+                                    valuePrimitive: true,
+                                    dataTextField: "meaning",
+                                    dataValueField: "value"
+                                });
+                            </script>
+                        </div>
+                    </div>
+                </div>
+
+                <!--操作的按钮组-->
+                <div class="row" id="buttons">
+                    <div class="col-sm-8">
+                        <!--保存-->
+                        <button class="btn btn-default" id="saveButton" data-bind="click:saveOrderHeadFunction"><i class="fa fa-save" aria-hidden="true"></i><@spring.message "保存"/></button>
+                        <!--提交-->
+                        <button class="btn btn-default" id="submitButton" type="button" data-bind="click:submitFunction"><i class="fa fa-location-arrow" aria-hidden="true"></i><@spring.message "提交"/></button>
+                        <!--审批-->
+                        <button class="btn btn-default" id="approvalButton" type="button" data-bind="click:approvdeFunction"><i class="fa fa-thumbs-o-up" aria-hidden="true"></i><@spring.message "审批"/></button>
+                        <!--拒绝-->
+                        <button class="btn btn-default" id="rejectButton" data-bind="click:rejectFunction"><i class="fa fa-thumbs-o-down" aria-hidden="true"></i><@spring.message "拒绝"/></button>
+                        <!--整单删除-->
+                        <button class="btn btn-default" id="deleteAllButton" type="button" data-bind="click:deleteAllFunction"><i class="fa fa-trash-o" aria-hidden="true"></i><@spring.message "整单删除"/></button>
+                        <!--打印-->
+                        <button class="btn btn-default" id="printButton" type="button" onclick="printHtml()"><i class="fa fa-print" aria-hidden="true"></i><@spring.message "单据打印"/></button>
+                        <!--返回-->
+                        <button class="btn btn-default" id="backButton" type="button" data-bind="click:gobackFunction"><i class="fa fa-repeat" aria-hidden="true"></i><@spring.message "返回"/></button>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+
+    </div>
+
+
+    <div class="pull-left" id="toolbar-btn" style="padding-bottom:10px;">
+        <button class="btn btn-primary k-grid-add"  id="createLine" style="float:left;margin-right:5px;" onclick="addOrderLine()"><@spring.message "hap.new"/></button>
+        <span class="btn btn-success k-grid-save-changes"  id="saveLine" data-bind="click:save" style="float:left;margin-right:5px;"><@spring.message "hap.save"/></span>
+        <span  data-bind="click:remove" class="btn btn-danger" id="deleteLine" style="float:left;"><@spring.message "hap.delete"/></span>
+    </div>
+    <script>kendo.bind($('#toolbar-btn'), viewModel);</script>
+    <script>kendo.bind($('#query-form'), viewModel);</script>
+    <div style="clear:both">
+        <div id="grid"></div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    Hap.initEnterQuery('#query-form', viewModel.query);
+    var BaseUrl = _basePath;
+    dataSource = new kendo.data.DataSource({
+        transport: {
+            read: {
+                url: BaseUrl + "/hap/om/order/lines/query",
+                type: "POST",
+                dataType: "json"
+            },
+            update: {
+                url: BaseUrl + "/hap/om/order/lines/submit",
+                type: "POST",
+                contentType: "application/json"
+            },
+            destroy: {
+                url: BaseUrl + "/hap/om/order/lines/remove",
+                type: "POST",
+                contentType: "application/json"
+            },
+            create: {
+                url: BaseUrl + "/hap/om/order/lines/add",
+                type: "POST",
+                contentType: "application/json"
+            },
+            parameterMap: function (options, type) {
+                //读取
+                if (type === "read") {
+                    return {
+                        //根据头表id进行查询
+                        headerId:headerId ,
+                        page: options.page,
+                        pagesize: options.pageSize
+                    };
+                }
+                //保存
+                if ( type === "create" && options.models) {
+                    var datas = Hap.prepareSubmitParameter(options, type);
+                    //点击保存按钮时，将需要的外键headerId和mycompanyId注入
+                    datas.forEach(function(value, index){
+                        value.headerId=headerId;
+                        value.companyId=mycompanyId;
+                    })
+                    return kendo.stringify(datas[0]);
+                }
+                //更新操作
+                if(type==="update"){
+                    var datas = Hap.prepareSubmitParameter(options, type);
+                    //点击保存按钮时，将需要的外键headerId和mycompanyId注入
+                    datas.forEach(function(value, index){
+                        value.headerId=headerId;
+                        value.companyId=mycompanyId;
+                    })
+                    return kendo.stringify(datas);
+                }
+                //删除操作
+                if (type === "destroy") {
+                    return kendo.stringify(Hap.prepareSubmitParameter(options, type));
+                }
+            }
+        },
+        batch: true,
+        serverPaging: true,
+        pageSize: 10,
+        schema: {
+            data: 'rows',
+            total: 'total',
+            model:{
+                id: "lineId",
+                fields: {
+                    //设置必输字段
+                    inventoryItemId: {validation:{required:true}},
+                    description: {validation:{required:true}},
+                    //设置格式
+                    orderdQuantity: {
+                        type:"number",
+                        validation:{
+                            required:true,min: 1
+                        }
+                    },
+                    unitSellingPrice: {
+                        type:"number",
+                        validation:{
+                            required:true,min:1
+                        }
+                    },
+                },
+                editable: function(col) {
+                    //金额列不可编辑
+                    if(col=='account' ){
+                        return false;
+                    }
+                    return true;
+                }
+
+            }
+        }
+    });
+
+    $("#grid").kendoGrid({
+        dataSource: dataSource,
+        resizable: true,
+        scrollable: true,
+        navigatable: false,
+        selectable: 'multiple, rowbox',
+        dataBound: function () {
+            if (parent.autoResizeIframe) {
+                parent.autoResizeIframe('${RequestParameters.functionCode!}')
+            }
+        },
+        pageable: {
+            pageSizes: [5, 10, 20, 50],
+            refresh: true,
+            buttonCount: 5
+        },
+        columns: [
+            {
+                field: "lineNumber",
+                title: '<@spring.message "行号"/>',
+                width: 120,
+                template:function (dataItem) {
+                    return dataItem.lineNumber;
+                },
+                editor: function (container, options) {
+                    options.model.set('lineNumber', myLineNumber);
+                    $('<input id="lineNumber"  disabled="disabled" required validationMessage="必输" type="text" name="lineNumber" class="k-input k-text-box" >')
+                        .appendTo(container)
+                        .text(
+
+                        )
+                }
+
+            },
+                    {
+                field: "itemCode",
+                title: '<@spring.message "物料编码"/>',
+                width: 120,
+                template: function (dataItem) {
+                    return dataItem['itemCode'] || ''
+                },
+                editor: function (container, options) {
+                    $('<input name="' + options.field + '"/>')
+                        .appendTo(container)
+                        .kendoLov($.extend(<@lov "HAPEXAM_ITEM"/>, {
+                        select:function(e){
+                            options.model.set("itemCode", e.item.itemCode);
+                            options.model.set("itemDescription", e.item.itemDescription);
+                            options.model.set("itemUom", e.item.itemUom);
+                            options.model.set("inventoryItemId", e.item.inventoryItemId);
+                        },
+                        model: options.model
+                    }
+                    ));
+                }
+            },
+                    {
+                field: "itemDescription",
+                title: '<@spring.message "物料描述"/>',
+                width: 120,
+                template: function (dataItem) {
+                    return dataItem['itemDescription'] || ''
+                },
+                editor:function (container, options){
+                    container.html(options.model.itemDescription);
+                }
+
+            },
+                     {
+                field: "itemUom",
+                title: '<@spring.message "产品单位"/>',
+                width: 120,
+                 template: function (dataItem) {
+                     return dataItem['itemUom'] || ''
+                 },
+                 editor:function (container, options){
+                     container.html(options.model.itemUom);
+                 }
+            },
+                    {
+                field: "orderdQuantity",
+                title: '<@spring.message "数量"/>',
+                width: 120
+
+            },
+                    {
+                field: "unitSellingPrice",
+                title: '<@spring.message "销售单价"/>',
+                width: 120
+
+            },
+                     {
+                field: "account",
+                title: '<@spring.message "金额"/>',
+                width: 120,
+                 template: function(dataItem){
+                     account=dataItem.orderdQuantity*dataItem.unitSellingPrice;
+                     return account.toFixed(2);
+                 }
+
+            },
+                    {
+                field: "description",
+                title: '<@spring.message "备注"/>',
+                width: 120
+            },
+                    {
+                field: "addition1",
+                title: '<@spring.message "附加信息1"/>',
+                width: 120
+            },
+                    {
+                field: "addition2",
+                title: '<@spring.message "附加信息2"/>',
+                width: 120
+            },
+                    {
+                field: "addition3",
+                title: '<@spring.message "附加信息3"/>',
+                width: 120
+            },
+                    {
+                field: "addition4",
+                title: '<@spring.message "附加信息4"/>',
+                width: 120
+            },
+                    {
+                field: "addition5",
+                title: '<@spring.message "附加信息5"/>',
+                width: 120
+            },
+        ],
+        editable: true
+    });
+
+
+
+    //根据传入的状态修改订单状态
+    function updateOrderStatus( myOrderStatus){
+        viewModel.model.set('orderStatus',myOrderStatus);
+        viewModel.model.set('customerId',mycustomerId);
+        var dataItem = viewModel.model.toJSON();
+        var data = kendo.stringify(dataItem);
+        $.ajax({
+            type: 'POST',
+            url: '/hap/om/order/headers/submit',
+            dataType: "json",
+            contentType: "application/json",
+            data: kendo.stringify(dataItem),
+            success: function (data) {
+                if (data.success == false) {
+                    kendo.ui.showErrorDialog({
+                        message: data.message
+                    });
+                }
+                else {
+                    kendo.ui.showInfoDialog({
+                        message: data.message
+                    }).done(function () {
+                        parent.location.reload();
+                    });
+                }
+            }
+        });
+    }
+
+
+
+
+
+    //订单行号获取
+    var myLineNumber;
+    function addOrderLine() {
+        if (headerId == 0) {
+            kendo.ui.showErrorDialog({
+                message: '新建失败，请先创建头信息'
+            });
+        } else {
+            $.ajax({
+                url:"/OrderLine/getSeqMum?headerId="+headerId,
+                dataType:"json",
+                success:function(data){
+                    if(myLineNumber>=data)
+                    {
+                        myLineNumber++;
+                    }
+                    else {
+                        myLineNumber = data;
+                    }
+                    $('#grid').data('kendoGrid').addRow();
+                    $("#lineNumber").data("text").value(data);
+                }
+            });
+        }
+    }
+
+
+    //导出PDF
+    function printHtml() {
+
+
+        $("#buttons").hide();
+        $("#toolbar-btn").hide();
+        kendo.drawing.drawDOM($('#page-content')).then(function (group) {
+            kendo.drawing.pdf.saveAs(group, "销售订单单据.pdf");
+            $("#buttons").show();
+            $("#toolbar-btn").show();
+        });
+    }
+</script>
+</body>
+</html>
